@@ -1,6 +1,5 @@
 
-import mongoose,{mongo, Schema} from "mongoose";
-import { Video } from "./video.model.js";
+import mongoose,{ Schema} from "mongoose";
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
