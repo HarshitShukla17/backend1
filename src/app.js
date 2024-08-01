@@ -18,4 +18,12 @@ app.use(express.urlencoded({extended: true,limit:"16kb"}));//this is used to par
 app.use(express.static("public"));//this is used to store files like images, css, js etc
 app.use(cookieParser());//this is used to parse the incoming cookies
 
+
+//routes import
+import userRouter from './routes/user.routes.js';
+
+
+//routes
+app.use("/api/v1/users", userRouter);
+
 export { app };
