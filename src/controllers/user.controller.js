@@ -3,6 +3,7 @@ import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshToken = async (userId) => {
   try {
@@ -179,7 +180,52 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "User logged out successfully"));
 });
 
-export { registerUser, loginUser, logoutUser };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  //get the refresh token from the cookie
+  //check for the refresh token
+  //generate the access token
+  //send the response
+  const incomingRefreshToken = req.cookies?.refreshToken||req.body.refreshToken;
+  if (!incomingRefreshToken) {
+    throw new ApiError(400, "Unauthorized request");
+  }
+  
+  //the user token and the saved one is different so need to verify it
+  const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+  const user = await User.findById( decodedToken._id );
+  if (!user) {
+    throw new ApiError(404, "Invalid refresh token");
+  }
+  if (user.refreshToken !== incomingRefreshToken) {
+    throw new ApiError(401,"request token is expired or used");
+  }
+
+
+ // yaha change kr sakta hoon like if my refresh token is matched and not expired then there is no need to generate new refresh token we 
+ //can use the old one and generate new access token only
+
+ 
+  const { accessToken,newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+
+  const options = {
+    httpOnly: true,
+    secure: true,
+  };
+
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", newRefreshToken, options)
+    .json(new ApiResponse(200, { accessToken,newRefreshToken }, "Access token refreshed successfully"));
+});
+
+export { 
+  registerUser, 
+  loginUser, 
+  logoutUser, 
+  refreshAccessToken 
+};
 
 // const user= new User({
 //     fullName,
