@@ -5,6 +5,7 @@ import { publishAVideo,updateVideo,getVideoById,getAllVideos,deleteVideo} from "
 
 //here routes are defined for video controller
 //routes are defined for publish video, update video, get video by id, get all videos, delete video
+//routes are protected by jwt token
 
 const router = Router();
 
