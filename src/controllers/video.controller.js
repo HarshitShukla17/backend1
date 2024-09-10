@@ -1,5 +1,7 @@
 import {Video} from "../models/video.model.js";
 import {User}  from "../models/user.model.js";
+import {Comment} from "../models/comment.model.js";
+import {Like} from "../models/like.model.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js";
 import {deleteOnCloudinary} from "../utils/cloudinary.js";
 import mongoose,{isValidObjectId} from "mongoose";
@@ -9,13 +11,13 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { parse } from "dotenv";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, username } = req.query
+    const { page = 1, limit = 10, query, sortBy="title", sortType="asc", username } = req.query
     //TODO: get all videos based on query, sort, pagination
     if(page < 1) throw new ApiError(400, "Invalid page number")
     if(limit < 1) throw new ApiError(400, "Invalid limit number")
     if(!sortBy||!['title','createdAt','views'].includes(sortBy)) throw new ApiError(400, "Invalid sortBy value")
     if(!sortType||!['asc','desc'].includes(sortType)) throw new ApiError(400, "Invalid sortType value")
-    if(!query||!username) throw new ApiError(400, "query or username is required")
+    if(!query&&!username) throw new ApiError(400, "query or username is required")
 
     let pipelineToFindVideosUsingTitleAndDescription = [
         {$match:{
@@ -131,7 +133,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
 const getVideoById = asyncHandler(async (req, res) => {
     const { videoId } = req.params
 
-    await findByIdAndUpdate(videoId,{$inc:{views:1}})
+    await Video.findByIdAndUpdate(videoId,{$inc:{views:1}});
     
 
     if(!isValidObjectId(videoId)) throw new ApiError(400, "Invalid video id")
@@ -251,7 +253,7 @@ const updateVideo = asyncHandler(async (req, res) => {
         console.log(req.file)
         const thumbnailLocalFilePath=req.file?.path
           
-        if (!title || title.trim() === "" || !description || !description.trim() === "" || !thumbnailLocalFilePath) {
+        if (!title || title.trim() === "" || !description || description.trim() === "" || !thumbnailLocalFilePath) {
             throw new ApiError(400, "All fields are required")
         }
          
@@ -319,6 +321,10 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const deleteVideo = asyncHandler(async (req, res) => {
     const { videoId } = req.params
+    if(videoId.trim()==="")
+    {
+        throw new ApiError(400,"please provide valid videoId")
+    }
     //TODO: delete video
     //1. check if videoId is valid
     //2. check if video exists
@@ -349,14 +355,23 @@ const deleteVideo = asyncHandler(async (req, res) => {
     try {
         const comments=await Comment.find({video:video._id})
         //delete the likes of comments
-        for(const comment of comments)
+        if(comments.length>0)
         {
-            await Like.deleteMany({comment:comment?._id})
+            for(const comment of comments)
+                {
+                    await Like.deleteMany({comment:comment?._id})
+                }
+                await Comment.deleteMany({video:video._id})
         }
+        const likes=await Like.find({video:video._id})
+        if(likes.length>0)
+        {
+            await Like.deleteMany({video:video._id})
+        }
+        
         //delete comments and likes from video and video
-
-        await Comment.deleteMany({video:video._id})
-        await Like.deleteMany({video:video._id})
+        
+        
         await Video.findByIdAndDelete(videoId)
         await deleteOnCloudinary(video.thumbnail)
         await deleteOnCloudinary(video.videoFile)
